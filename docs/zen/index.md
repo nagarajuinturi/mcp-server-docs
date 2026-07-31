@@ -1,11 +1,11 @@
 ---
 title: Actian Zen
-description: Connect MCP clients to Actian Zen for database exploration and read-only SQL queries.
+description: Connect MCP clients to Actian Zen for database exploration, SQL queries, and optional write support.
 ---
 
 # Actian MCP Server for Zen
 
-Connect the MCP-compatible client to Actian Zen using the Actian MCP Server. The server handles automatic Zen dialect translation, allowing you to explore schema metadata, execute read-only SQL queries, and perform ORM operations through a standard interface.
+Connect the MCP-compatible client to Actian Zen using the Actian MCP Server. The server handles automatic Zen dialect translation, allowing you to explore schema metadata, execute SQL queries, and perform ORM operations through a standard interface. Queries are read-only unless you enable write mode.
 
 ## Capabilities
 
@@ -19,6 +19,10 @@ The Actian MCP Server for Zen supports the following operations:
 | **Blob and file data** | List and download blob or file data stored in the database. |
 | **Server management** | Query server capabilities, list DSNs, and release locks.|
 | **Schema metadata** | View the database schema as a structured resource. |
+| **Execute write queries** | Run `INSERT`, `UPDATE`, `DELETE`, and `MERGE` statements, one at a time or in bulk. Off by default. Requires `query_mode` set to `read-write` |
+
+!!! note "Write support is opt-in"
+    The server permits only read queries unless you set `query_mode` to `read-write`. Each write then requires the `mcp:write` scope and human approval. On Zen the writes run through dedicated tools rather than through `execute_query`, and enabling them replaces `blob_operation` and `database_manage` in the registered tool set. For more information, see [Write support](../intro/write-support.md) and [Tools](tools/index.md).
 
 
 
@@ -83,9 +87,18 @@ Use this format when the database requires authentication. This bypasses the con
 | `log_level` | `string` | `INFO` | Server log verbosity. Valid values: `DEBUG`, `INFO`, `WARNING`, `ERROR`, `CRITICAL`. |
 | `oauth` | `object` | — | OAuth configuration block for protected deployments, see [Authentication](../authentication/index.md) for more information. |
 | `extensions` | `array` | — | Extension modules to load, each an object with a required `module` and an optional `config`. For more information, see [Extensions](../extensions/index.md) |
+| `query_mode` | `string` | `read-only` | Controls whether data-modifying SQL is permitted. Valid values are `read-only` and `read-write`. See [Write support](../intro/write-support.md) |
+| `write_confirmation` | `boolean` | `true` | Whether a write requires human approval before it runs. Set to `false` only for clients that cannot display the approval prompt. See [Write support](../intro/write-support.md#skipping-the-approval-prompt) |
 
 !!! note "OAuth and user impersonation"
     Actian Zen does not support `SET SESSION AUTHORIZATION`. If you use OAuth, set `user_impersonation: false` in the `oauth` block. The server logs the authenticated user but does not enforce it at the database level.
+
+    This applies to writes as well. The `mcp:write` scope decides whether the caller may write at all, but every statement then runs as the account in `conn_string`, not as the authenticated user.
+
+!!! note "The legacy `readonly` field"
+    Earlier Zen configurations used a boolean `readonly` field. It is still honored when `query_mode` is absent, so existing files keep working: `readonly: true` means read-only, and `readonly: false` means read-write.
+
+    When both fields are present, `query_mode` wins and `readonly` is ignored. A file with `readonly: true` and `query_mode: read-write` runs the server in **read-write** mode. Set `query_mode` alone in new configurations, and remove `readonly` from old ones rather than leaving the two to disagree.
 
 
 ## Start the Server
@@ -115,6 +128,7 @@ After connecting, the MCP client automatically discovers the server's capabiliti
 - **Run a query:** Execute a read-only SQL statement and receive formatted results.
 - **Explore relationships:**  Traverse foreign keys and related tables using ORM operations.
 - **Summarize results:**  Ask the client to interpret or summarize query output.
+- **Modify data:** In `read-write` mode, insert, update, or delete rows and approve each change when the server asks. See [Write support](../intro/write-support.md).
 
 
 
