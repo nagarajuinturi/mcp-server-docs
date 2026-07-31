@@ -655,7 +655,7 @@ The approval prompt reports how many rows match `Department = 'Support'` before 
 }
 ```
 
-### Errors
+### Write Errors
 
 **A required parameter for the mode is missing**
 
